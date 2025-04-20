@@ -1,0 +1,17 @@
+{
+  "platforms": [
+    "apple",
+    "android",
+    "web"
+  ],
+  "apple": {
+    "modules": [
+      "ExpoUnifiedPushModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "dev.djara.expounifiedpush.ExpoUnifiedPushModule"
+    ]
+  }
+}

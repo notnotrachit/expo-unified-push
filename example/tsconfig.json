@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "expo-unified-push": ["../src/index"],
+      "expo-unified-push/*": ["../src/*"]
+    }
+  }
+}
