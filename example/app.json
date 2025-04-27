@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "expo-unified-push-example",
+    "name": "Expo Unified Push Example",
     "slug": "expo-unified-push-example",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/up.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {

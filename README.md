@@ -1,0 +1,28 @@
+# expo-unified-push
+
+Expo integration of the android Unified Push library.
+
+> [!WARNING]  
+> This library is only supported on Android at the moment. For iOS suport, we recommend using the [RN Push Notifications](https://github.com/react-native-push-notification/ios) library.
+
+# API documentation
+
+- TODO: link to TSDOC
+
+# Installation in managed Expo projects
+
+For [managed](https://docs.expo.dev/archive/managed-vs-bare/) Expo projects, please follow the installation instructions in the [API documentation](#api-documentation).
+
+# Installation in bare React Native projects
+
+For bare React Native projects, you must ensure that you have [installed and configured the `expo` package](https://docs.expo.dev/bare/installing-expo-modules/) before continuing.
+
+### Add the package to your npm dependencies
+
+```
+npm install expo-unified-push
+```
+
+# Contributing
+
+Contributions are very welcome! Just make sure to keep the code style consistent with the rest of the codebase and ask before adding any new dependencies.

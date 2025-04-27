@@ -1,12 +1,149 @@
-import { NativeModule, requireNativeModule } from 'expo';
+import { NativeModule, requireNativeModule } from "expo";
+import { PermissionsAndroid } from "react-native";
 
-import { ExpoUnifiedPushModuleEvents } from './ExpoUnifiedPush.types';
+// NOTE: most of these imports are unused in the code, but they are used in the documentation of various methods.
+import type {
+  Callback,
+  Notification,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  MessagePayload,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  NewEndpointPayload,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  RegistrationFailedPayload,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  UnregisteredPayload,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ErrorPayload,
+} from "./ExpoUnifiedPush.types";
 
-declare class ExpoUnifiedPushModule extends NativeModule<ExpoUnifiedPushModuleEvents> {
-  PI: number;
-  hello(): string;
-  setValueAsync(value: string): Promise<void>;
+declare class ExpoUnifiedPushModule extends NativeModule {
+  /**
+   * Get the list of Unified Push distributors available on the device.
+   * The list will always include a low-priority distributor that uses Firebase Cloud Messaging (GCM).
+   * @returns a list of distributor identifiers.
+   */
+  getDistributors(): string[];
+
+  /**
+   * Get the distributor selected for using Unified Push.
+   * If no distributor has been selected or the stored distributor is not available or is unresponsive, it will return `null`.
+   * @returns The selected distributor identifier or `null`.
+   */
+  getSavedDistributor(): string | null;
+
+  /**
+   * Select a distributor for using Unified Push. This will be saved in the device storage.
+   * @param distributor The distributor identifier to select.
+   */
+  saveDistributor(distributor: string | null): void;
+
+  /**
+   * Register a device for push notifications, connecting to the selected distributor.
+   *
+   * This method will try to use the saved distributor else, use the default distributor.
+   * If you had already registered your device with a distributor, this ensures the connection is working, hence why you should always call this method on application startup.
+   * If the previous distributor has been uninstalled, it will fallback to the user's default.
+   * External distributors will be favored over embedded distributors.
+   *
+   * @param vapid The VAPID public key that identifies the server that will be sending the push notifications. This key can be generated using the `web-push` package from npm. More information can be found at https://github.com/web-push-libs/web-push.
+   * @param userId The user ID that will be used to differentiate between multiple users on the same device. You can set this to `null` if you won't have multiple users on the same device at the same time.
+   */
+  registerDevice(vapid: string, userId: string | null): Promise<void>;
+
+  /**
+   * Unregister a device for push notifications.
+   * This method will remove the device from the distributor for the given user ID.
+   * The distributor subscriber will not receive the `unregistered` event after calling this method.
+   *
+   * @param userId The user ID that will be used to differentiate between multiple users on the same device. You can set this to `null` if you won't have multiple users on the same device at the same time.
+   */
+  unregisterDevice(userId: string | null): void;
+
+  /**
+   * Subscribe to the messages sent from the distributor background service.
+   * This callback will be called whenever the distributor sends a message to the device.
+   * It will not run if the app is terminated but notifications will still be delivered even if this callback is not registered.
+   * It will also receive error messages created when displaying notifications on the background service.
+   *
+   * @param fn The function that will receive the distributor messages.
+   *
+   * This function will always receive an object with the properties `type` and `data`:
+   * - `data`: The data sent from the distributor. Varies depending on the `type` property.
+   * - `type`: The type of message received. Can be one of the following:
+   * - - `"message"`: A push notification was received. Data for this type is {@link MessagePayload}.
+   * - - `"newEndpoint"`: This message is received when the device is registered with a distributor. Data for this type is {@link NewEndpointPayload}. This is the data that is needed for the backend to send a push notification to a specific device.
+   * - - `"registrationFailed"`: The device failed to register with the distributor. Data for this type is {@link RegistrationFailedPayload}.
+   * - - `"unregistered"`: The device has been unregistered from the distributor. Data for this type is {@link UnregisteredPayload}.
+   * - - `"error"`: An error occurred while receiving a message from the distributor. Data for this type is {@link ErrorPayload}.
+   */
+  subscribeDistributorMessages(fn: Callback): void;
+
+  /** Internal method used to show a local notification.
+   * It is prefixed with an underscore to avoid conflicts with the exported `showLocalNotification` function.
+   * It is important to use `showLocalNotification` without the underscore instead of this one because of the type checking.
+   */
+  private __showLocalNotification(notification: string): void;
+
+  /**
+   * Check if this module is running inside an emulator.
+   * Internal method used only in other calls.
+   */
+  private __isEmulator(): boolean;
+}
+
+/**
+ * Request the necessary permissions for the distributor to send messages to the device.
+ * This method will request the `POST_NOTIFICATIONS` android permission.
+ * If this module is running inside an emulator, this function will always return `"denied"`, as notifications are not supported on emulators.
+ *
+ * @returns A promise that resolves to 'granted' if the permission was granted, 'denied' if the user denied the permission, or 'never_ask_again' if the user chose to never ask again.
+ */
+export function requestPermissions() {
+  // @ts-ignore: Private field access is intentional
+  if (module.__isEmulator()) {
+    return Promise.resolve("denied");
+  }
+
+  return PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+  );
+}
+
+/**
+ * Check if the `POST_NOTIFICATIONS` android permission has been granted.
+ * If this module is running inside an emulator, this function will always return `false`, as notifications are not supported on emulators
+ *
+ * @returns A promise that resolves to `true` if the permission has been granted, `false` otherwise.
+ */
+export function checkPermissions() {
+  // @ts-ignore: Private field access is intentional
+  if (module.__isEmulator()) {
+    return Promise.resolve(false);
+  }
+
+  return PermissionsAndroid.check(
+    PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+  );
+}
+
+/**
+ * Show a local notification. This is a helper function that will show a notification using the native notification API.
+ * It can be used to test the different types of notifications that can be received from the distributor.
+ * The same payload that this function receives is the one that the backend will have to send to the distributor.
+ *
+ * @param notification The notification object with all its options.
+ */
+export function showLocalNotification(notification: Notification) {
+  try {
+    const json = JSON.stringify(notification);
+    // @ts-ignore: Private field access is intentional
+    module.__showLocalNotification(json);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 // This call loads the native module object from the JSI.
-export default requireNativeModule<ExpoUnifiedPushModule>('ExpoUnifiedPush');
+const module = requireNativeModule<ExpoUnifiedPushModule>("ExpoUnifiedPush");
+export default module;
