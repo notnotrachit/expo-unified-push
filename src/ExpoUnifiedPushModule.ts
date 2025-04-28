@@ -8,13 +8,14 @@ import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   MessagePayload,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  NewEndpointPayload,
+  RegisteredPayload,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   RegistrationFailedPayload,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   UnregisteredPayload,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ErrorPayload,
+  Distributor,
 } from "./ExpoUnifiedPush.types";
 
 declare class ExpoUnifiedPushModule extends NativeModule {
@@ -23,7 +24,7 @@ declare class ExpoUnifiedPushModule extends NativeModule {
    * The list will always include a low-priority distributor that uses Firebase Cloud Messaging (GCM).
    * @returns a list of distributor identifiers.
    */
-  getDistributors(): string[];
+  getDistributors(): Distributor[];
 
   /**
    * Get the distributor selected for using Unified Push.
@@ -47,18 +48,18 @@ declare class ExpoUnifiedPushModule extends NativeModule {
    * External distributors will be favored over embedded distributors.
    *
    * @param vapid The VAPID public key that identifies the server that will be sending the push notifications. This key can be generated using the `web-push` package from npm. More information can be found at https://github.com/web-push-libs/web-push.
-   * @param userId The user ID that will be used to differentiate between multiple users on the same device. You can set this to `null` if you won't have multiple users on the same device at the same time.
+   * @param instance This param is used to identify different registrations in the same device, for example if the app has an account swithcer feature, you can set this to the current user ID. You can set this to `null` if you won't have multiple users on the same device at the same time.
    */
-  registerDevice(vapid: string, userId: string | null): Promise<void>;
+  registerDevice(vapid: string, instance?: string): Promise<void>;
 
   /**
    * Unregister a device for push notifications.
    * This method will remove the device from the distributor for the given user ID.
    * The distributor subscriber will not receive the `unregistered` event after calling this method.
    *
-   * @param userId The user ID that will be used to differentiate between multiple users on the same device. You can set this to `null` if you won't have multiple users on the same device at the same time.
+   * @param instance The same `instance` param that was used on the `registerDevice` method.
    */
-  unregisterDevice(userId: string | null): void;
+  unregisterDevice(instance?: string): void;
 
   /**
    * Subscribe to the messages sent from the distributor background service.
@@ -68,14 +69,16 @@ declare class ExpoUnifiedPushModule extends NativeModule {
    *
    * @param fn The function that will receive the distributor messages.
    *
-   * This function will always receive an object with the properties `type` and `data`:
-   * - `data`: The data sent from the distributor. Varies depending on the `type` property.
-   * - `type`: The type of message received. Can be one of the following:
+   * This function will always receive an object with the properties `action` and `data`:
+   * - `data`: The data sent from the distributor. Varies depending on the `action` property.
+   * - `action`: The action that was performed by the distributor. Can be one of the following:
    * - - `"message"`: A push notification was received. Data for this type is {@link MessagePayload}.
-   * - - `"newEndpoint"`: This message is received when the device is registered with a distributor. Data for this type is {@link NewEndpointPayload}. This is the data that is needed for the backend to send a push notification to a specific device.
-   * - - `"registrationFailed"`: The device failed to register with the distributor. Data for this type is {@link RegistrationFailedPayload}.
-   * - - `"unregistered"`: The device has been unregistered from the distributor. Data for this type is {@link UnregisteredPayload}.
-   * - - `"error"`: An error occurred while receiving a message from the distributor. Data for this type is {@link ErrorPayload}.
+   *        The text in `data.message` will contain the JSON-encoded payload of the push notification if `data.decrypted` is `true`.
+   *        Otherwise, it will contain the raw encrypted payload.
+   * - - `"registered"`: The device has been registered with a distributor. Data for this type is {@link RegisteredPayload}. This is the data that is needed for the backend to send a push notification to a specific device.
+   * - - `"registrationFailed"`: The device failed to register with a distributor. Data for this type is {@link RegistrationFailedPayload}.
+   * - - `"unregistered"`: The device has been unregistered from a distributor. Data for this type is {@link UnregisteredPayload}.
+   * - - `"error"`: An error occurred while receiving a message from a distributor. Data for this type is {@link ErrorPayload}.
    */
   subscribeDistributorMessages(fn: Callback): void;
 
@@ -83,7 +86,7 @@ declare class ExpoUnifiedPushModule extends NativeModule {
    * It is prefixed with an underscore to avoid conflicts with the exported `showLocalNotification` function.
    * It is important to use `showLocalNotification` without the underscore instead of this one because of the type checking.
    */
-  private __showLocalNotification(notification: string): void;
+  private __showLocalNotification(notification: string): Promise<void>;
 
   /**
    * Check if this module is running inside an emulator.
@@ -134,11 +137,11 @@ export function checkPermissions() {
  *
  * @param notification The notification object with all its options.
  */
-export function showLocalNotification(notification: Notification) {
+export async function showLocalNotification(notification: Notification) {
   try {
     const json = JSON.stringify(notification);
     // @ts-ignore: Private field access is intentional
-    module.__showLocalNotification(json);
+    await module.__showLocalNotification(json);
   } catch (error) {
     console.error(error);
   }
