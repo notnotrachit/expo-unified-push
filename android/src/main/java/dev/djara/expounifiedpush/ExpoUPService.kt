@@ -7,26 +7,27 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationCompat.MessagingStyle
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import expo.modules.kotlin.jni.JavaScriptFunction
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.builtins.serializer
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
@@ -76,7 +77,7 @@ class ExpoUPService : PushService() {
 
         data.putBoolean("decrypted", message.decrypted)
         data.putString("instance", instance)
-        Log.d(TAG, "sending message action with data: $data")
+        Log.d(TAG, "sending \"message\" action with data: $data")
         sendPushEvent("message", data)
 
         if (message.decrypted) {
@@ -106,7 +107,7 @@ class ExpoUPService : PushService() {
             return
         }
 
-        val id = data["id"]?.jsonPrimitive?.int
+        val id = data["id"]?.jsonPrimitive?.long
         val url = data["url"]?.jsonPrimitive?.content
         val title = data["title"]?.jsonPrimitive?.content
         val body = data["body"]?.jsonPrimitive?.content
@@ -123,7 +124,7 @@ class ExpoUPService : PushService() {
         val channel = getNotificationChannelId()
         val notification =
             NotificationCompat.Builder(this, channel)
-                .setSmallIcon(icon)
+                .setSmallIcon(icon!!)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setTicker(title)
@@ -147,9 +148,7 @@ class ExpoUPService : PushService() {
             }
         }
 
-        // using this operation to avoid problem with ids being too long numbers
-        val clampedId = id % 1000000000
-        NotificationManagerCompat.from(this).notify(clampedId, notification.build())
+        NotificationManagerCompat.from(this).notify(id.toInt(), notification.build())
     }
 
     private suspend fun urlToBitmap(url: String): Bitmap {
@@ -173,14 +172,20 @@ class ExpoUPService : PushService() {
         return channel
     }
 
+    private fun getAppName(): String {
+        val pm = applicationContext.packageManager
+        val info = applicationContext.applicationInfo
+        return pm.getApplicationLabel(info).toString()
+    }
+
     private fun getNotificationChannelName(): String {
-        val appName = applicationContext.applicationInfo.name ?: applicationContext.packageName
+        val appName = getAppName()
         val text = "$appName UP Notifications"
         return text
     }
 
     private fun getNotificationChannelDescription(): String {
-        val appName = applicationContext.applicationInfo.name ?: applicationContext.packageName
+        val appName = getAppName()
         val text = "Unified Push Notification Channel for $appName"
         return text
     }
@@ -219,22 +224,22 @@ class ExpoUPService : PushService() {
         data.putString("pubKey", endpoint.pubKeySet?.pubKey)
         data.putString("auth", endpoint.pubKeySet?.auth)
         data.putString("instance", instance)
-        Log.d(TAG, "sending newEndpoint action with data: $data")
-        sendPushEvent("newEndpoint", data)
+        Log.d(TAG, "sending \"registered\" action with data: $data")
+        sendPushEvent("registered", data)
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {
         val data = Bundle()
         data.putString("reason", reason.name)
         data.putString("instance", instance)
-        Log.d(TAG, "sending registrationFailed action with data: $data")
+        Log.d(TAG, "sending \"registrationFailed\" action with data: $data")
         sendPushEvent("registrationFailed", data)
     }
 
     override fun onUnregistered(instance: String) {
         val data = Bundle()
         data.putString("instance", instance)
-        Log.d(TAG, "sending unregistered action with data: $data")
+        Log.d(TAG, "sending \"unregistered\" action with data: $data")
         sendPushEvent("unregistered", data)
     }
 }
