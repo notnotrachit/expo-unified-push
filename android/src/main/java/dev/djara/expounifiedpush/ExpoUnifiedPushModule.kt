@@ -1,14 +1,18 @@
 package dev.djara.expounifiedpush
 
-import android.Manifest
+import android.R.attr.bitmap
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.os.Bundle
 import android.os.IBinder
-import androidx.annotation.RequiresPermission
+import android.util.Base64
 import androidx.core.app.ActivityCompat
 import expo.modules.core.utilities.EmulatorUtilities
 import expo.modules.kotlin.Promise
@@ -19,6 +23,9 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import org.unifiedpush.android.connector.INSTANCE_DEFAULT
 import org.unifiedpush.android.connector.PushService
 import org.unifiedpush.android.connector.UnifiedPush
+import java.io.ByteArrayOutputStream
+import androidx.core.graphics.createBitmap
+
 
 class ExpoUnifiedPushModule : Module() {
   // Each module class must implement the definition function. The definition consists of components
@@ -41,7 +48,24 @@ class ExpoUnifiedPushModule : Module() {
     Function("getDistributors") {
       val context = appContext.activityProvider?.currentActivity
       if (context != null) {
-        return@Function UnifiedPush.getDistributors(context)
+        val saved = UnifiedPush.getSavedDistributor(context)
+        val connected = UnifiedPush.getAckDistributor(context)
+        return@Function UnifiedPush.getDistributors(context).map {
+          var name = getPackageName(it)
+          val isInternal = it == appContext.reactContext?.packageName
+          if (isInternal) {
+            name = "Internal FCM Distributor"
+          }
+
+          return@map mapOf(
+            "id" to it,
+            "name" to name,
+            "icon" to getDistributorIcon(it),
+            "isInternal" to isInternal,
+            "isSaved" to (it == saved),
+            "isConnected" to (it == connected),
+          )
+        }
       } else {
         return@Function emptyArray<String>()
       }
@@ -50,7 +74,7 @@ class ExpoUnifiedPushModule : Module() {
     Function("getSavedDistributor") {
       val context = appContext.activityProvider?.currentActivity
       if (context != null) {
-        return@Function UnifiedPush.getAckDistributor(context)
+        return@Function UnifiedPush.getSavedDistributor(context)
       } else {
         return@Function null
       }
@@ -67,33 +91,38 @@ class ExpoUnifiedPushModule : Module() {
       }
     }
 
-    AsyncFunction("registerDevice") { vapid: String, userId: String?, promise: Promise ->
+    AsyncFunction("registerDevice") { vapid: String, instance: String?, promise: Promise ->
+      if (EmulatorUtilities.isRunningOnEmulator()) {
+        return@AsyncFunction promise.reject(
+          CodedException("Cannot register for notifications while running on an emulator")
+        )
+      }
+
       val context = appContext.activityProvider?.currentActivity
-      val name = context?.applicationInfo?.name ?: context?.packageName
 
       if (context != null) {
-        UnifiedPush.tryUseCurrentOrDefaultDistributor(context) { success ->
-          if (success) {
-            UnifiedPush.register(
-              context,
-              userId ?: INSTANCE_DEFAULT,
-              "Expo Unified Push is trying to register notifications for $name",
-              vapid
-            )
-            promise.resolve()
-          } else {
-            promise.reject(CodedException("Error finding current or default distributor for Unified Push"))
-          }
+        val name = getPackageName(context.packageName)
+        val saved = UnifiedPush.getSavedDistributor(context)
+        if (saved == null) {
+          promise.reject(CodedException("You must call `saveDistributor` before trying to register for notifications"))
+        } else {
+          UnifiedPush.register(
+            context,
+            instance ?: INSTANCE_DEFAULT,
+            "Expo Unified Push is trying to register notifications for $name",
+            vapid
+          )
+          promise.resolve()
         }
       } else {
         promise.reject(CodedException("App Context for this module is not ready yet"))
       }
     }
 
-    Function("unregisterDevice") { userId: String? ->
+    Function("unregisterDevice") { instance: String? ->
       val context = appContext.activityProvider?.currentActivity
       if (context != null) {
-        UnifiedPush.unregister(context, userId ?: INSTANCE_DEFAULT)
+        UnifiedPush.unregister(context, instance ?: INSTANCE_DEFAULT)
       }
     }
 
@@ -106,7 +135,8 @@ class ExpoUnifiedPushModule : Module() {
       }
     }
 
-    Function("__showLocalNotification") { json: String ->
+    // NOTE: This function is async only to handle the errors with promise rejections, maybe there is a better way to do this
+    AsyncFunction("__showLocalNotification") { json: String, promise: Promise ->
       if (distributorService != null)  {
         val permission = ActivityCompat.checkSelfPermission(
           appContext.reactContext!!,
@@ -114,7 +144,12 @@ class ExpoUnifiedPushModule : Module() {
         )
         if (permission == PackageManager.PERMISSION_GRANTED) {
           distributorService!!.showNotification(json)
+          promise.resolve()
+        } else {
+          promise.reject(CodedException("This application does not have permission to show notifications"))
         }
+      } else {
+        promise.reject(CodedException("This function should not be called before the service is bound on module creation"))
       }
     }
 
@@ -129,6 +164,62 @@ class ExpoUnifiedPushModule : Module() {
     OnDestroy {
       unbindService()
     }
+  }
+
+  private fun getPackageName(id: String): String? {
+    val pm = appContext.reactContext?.packageManager ?: return null
+    val info = pm.getPackageInfo(id, 0).applicationInfo ?: return null
+    return pm.getApplicationLabel(info).toString()
+  }
+
+  private fun getDistributorIcon(distributor: String): String? {
+    val icon = appContext.reactContext?.packageManager?.getApplicationIcon(distributor)
+    val base64 = drawableToBase64(icon)
+    return "data:image/png;base64,$base64"
+  }
+
+  /**
+   * Converts an Android Drawable to a Base64 encoded String.
+   * Handles BitmapDrawables directly and attempts to render other drawables
+   * to a Bitmap.
+   *
+   * @param drawable The Drawable to convert.
+   * @return The Base64 encoded String, or null if conversion fails.
+   */
+  private fun drawableToBase64(drawable: Drawable?): String? {
+    if (drawable == null) {
+      return null
+    }
+
+    val bitmap: Bitmap? = if (drawable is BitmapDrawable) {
+      drawable.bitmap
+    } else {
+      // Attempt to render other drawable types to a bitmap
+      try {
+        val width = Math.max(1, drawable.intrinsicWidth)
+        val height = Math.max(1, drawable.intrinsicHeight)
+        val bmp = createBitmap(width, height)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        bmp
+      } catch (e: Exception) {
+        e.printStackTrace()
+        null // Failed to create bitmap from drawable
+      }
+    }
+
+    if (bitmap == null) {
+      return null
+    }
+
+    val byteArrayOutputStream = ByteArrayOutputStream()
+    // You can choose Bitmap.CompressFormat.JPEG and adjust quality as needed
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
+    val byteArray = byteArrayOutputStream.toByteArray()
+
+    // Use Base64.NO_WRAP to avoid line breaks in the output string
+    return Base64.encodeToString(byteArray, Base64.NO_WRAP)
   }
 
   private fun bindService() {
