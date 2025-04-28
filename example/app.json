@@ -18,7 +18,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/up-monochrome.png",
+        "foregroundImage": "./assets/up-monochrome.png",
         "backgroundColor": "#ffffff"
       },
       "package": "dev.djara.expounifiedpush.example"
