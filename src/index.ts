@@ -2,6 +2,7 @@
 // and on native platforms to ExpoUnifiedPushModule.ts
 export {
   default,
+  ExpoUnifiedPushModule,
   requestPermissions,
   checkPermissions,
   showLocalNotification,

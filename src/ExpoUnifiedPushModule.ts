@@ -18,23 +18,27 @@ import type {
   Distributor,
 } from "./ExpoUnifiedPush.types";
 
-declare class ExpoUnifiedPushModule extends NativeModule {
+/**
+ * The native module that is used to bridge the kotlin native code with the javascript code.
+ */
+export declare class ExpoUnifiedPushModule extends NativeModule {
   /**
    * Get the list of Unified Push distributors available on the device.
-   * The list will always include a low-priority distributor that uses Firebase Cloud Messaging (GCM).
+   * The list will always include a low-priority distributor that uses Firebase Cloud Messaging (FCM).
    * @returns a list of distributor identifiers.
    */
   getDistributors(): Distributor[];
 
   /**
    * Get the distributor selected for using Unified Push.
-   * If no distributor has been selected or the stored distributor is not available or is unresponsive, it will return `null`.
+   * If no distributor has been selected, it will return `null`.
    * @returns The selected distributor identifier or `null`.
    */
   getSavedDistributor(): string | null;
 
   /**
    * Select a distributor for using Unified Push. This will be saved in the device storage.
+   * You can also pass `null` to clear the saved distributor, but this will clear all instances registered with the distributor.
    * @param distributor The distributor identifier to select.
    */
   saveDistributor(distributor: string | null): void;
@@ -42,19 +46,19 @@ declare class ExpoUnifiedPushModule extends NativeModule {
   /**
    * Register a device for push notifications, connecting to the selected distributor.
    *
-   * This method will try to use the saved distributor else, use the default distributor.
+   * The returned promise will automatically be rejected if app is running inside an emulator or no distributor is selected.
    * If you had already registered your device with a distributor, this ensures the connection is working, hence why you should always call this method on application startup.
-   * If the previous distributor has been uninstalled, it will fallback to the user's default.
    * External distributors will be favored over embedded distributors.
    *
    * @param vapid The VAPID public key that identifies the server that will be sending the push notifications. This key can be generated using the `web-push` package from npm. More information can be found at https://github.com/web-push-libs/web-push.
-   * @param instance This param is used to identify different registrations in the same device, for example if the app has an account swithcer feature, you can set this to the current user ID. You can set this to `null` if you won't have multiple users on the same device at the same time.
+   * @param instance This param is used to identify different registrations in the same device, for example if the app has an account swithcer feature, you can set this to the current user ID.
+   * This param is not mandatory. If you won't have multiple users on the same device at the same time, you can omit it.
    */
   registerDevice(vapid: string, instance?: string): Promise<void>;
 
   /**
    * Unregister a device for push notifications.
-   * This method will remove the device from the distributor for the given user ID.
+   * This method will remove a registration for a specific instance from the distributor.
    * The distributor subscriber will not receive the `unregistered` event after calling this method.
    *
    * @param instance The same `instance` param that was used on the `registerDevice` method.
