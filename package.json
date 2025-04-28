@@ -13,7 +13,8 @@
     "prepublishOnly": "expo-module prepublishOnly",
     "expo-module": "expo-module",
     "open:ios": "xed example/ios",
-    "open:android": "open -a \"Android Studio\" example/android"
+    "open:android": "open -a \"Android Studio\" example/android",
+    "docs": "npx typedoc"
   },
   "keywords": [
     "react-native",
@@ -28,11 +29,10 @@
   "author": "Juan D. Jara <hola@juandjara.com> (https://github.com/juandjara)",
   "license": "MIT",
   "homepage": "https://github.com/juandjara/expo-unified-push#readme",
-  "dependencies": {},
   "devDependencies": {
     "@types/react": "~18.3.12",
-    "expo-module-scripts": "^4.0.4",
     "expo": "~52.0.0",
+    "expo-module-scripts": "^4.0.4",
     "react-native": "0.76.0"
   },
   "peerDependencies": {
