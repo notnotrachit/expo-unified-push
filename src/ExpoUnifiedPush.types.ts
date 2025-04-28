@@ -4,7 +4,7 @@ export type MessagePayload = {
   instance: string;
 };
 
-export type NewEndpointPayload = {
+export type RegisteredPayload = {
   url: string;
   pubKey: string;
   auth: string;
@@ -27,23 +27,23 @@ export type ErrorPayload = {
 
 export type CallbackData =
   | {
-      type: "message";
+      action: "message";
       data: MessagePayload;
     }
   | {
-      type: "newEndpoint";
-      data: NewEndpointPayload;
+      action: "registered";
+      data: RegisteredPayload;
     }
   | {
-      type: "registrationFailed";
+      action: "registrationFailed";
       data: RegistrationFailedPayload;
     }
   | {
-      type: "unregistered";
+      action: "unregistered";
       data: UnregisteredPayload;
     }
   | {
-      type: "error";
+      action: "error";
       data: ErrorPayload;
     };
 
@@ -57,4 +57,13 @@ export type Notification = {
   imageUrl?: string;
   number?: number;
   silent?: boolean;
+};
+
+export type Distributor = {
+  id: string;
+  name?: string;
+  icon?: string;
+  isInternal?: boolean;
+  isSaved?: boolean;
+  isConnected?: boolean;
 };
