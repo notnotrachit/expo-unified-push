@@ -22,7 +22,10 @@
     "expo-unified-push",
     "ExpoUnifiedPush"
   ],
-  "repository": "https://github.com/juandjara/expo-unified-push",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juandjara/expo-unified-push.git"
+  },
   "bugs": {
     "url": "https://github.com/juandjara/expo-unified-push/issues"
   },
