@@ -23,9 +23,9 @@ For bare React Native projects, you must ensure that you have [installed and con
 npm install expo-unified-push
 ```
 
-## Example app
+## Example integration into your app
 
-Example app is available in the [example](./example) folder.
+To see an example implementation of the library, you can check the [App.tsx](./example/App.tsx) file in the [example](./example) folder.
 
 ## Contributing
 
