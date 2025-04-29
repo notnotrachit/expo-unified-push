@@ -7,7 +7,7 @@ Expo integration of the android Unified Push library.
 
 # API documentation
 
-- TODO: link to TSDOC
+Main documentation is available at [ExpoUnifiedPushModule](https://juandjara.github.io/expo-unified-push/classes/ExpoUnifiedPushModule.html) typedoc pages.
 
 # Installation in managed Expo projects
 
