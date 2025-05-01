@@ -16,12 +16,17 @@ import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ErrorPayload,
   Distributor,
+  CallbackData,
 } from "./ExpoUnifiedPush.types";
+
+type ExpoUnifiedPushModuleEvents = {
+  message(event: CallbackData): void;
+};
 
 /**
  * The native module that is used to bridge the kotlin native code with the javascript code.
  */
-export declare class ExpoUnifiedPushModule extends NativeModule {
+export declare class ExpoUnifiedPushModule extends NativeModule<ExpoUnifiedPushModuleEvents> {
   /**
    * Get the list of Unified Push distributors available on the device.
    * The list will always include a low-priority distributor that uses Firebase Cloud Messaging (FCM).
@@ -65,27 +70,6 @@ export declare class ExpoUnifiedPushModule extends NativeModule {
    */
   unregisterDevice(instance?: string): void;
 
-  /**
-   * Subscribe to the messages sent from the distributor background service.
-   * This callback will be called whenever the distributor sends a message to the device.
-   * It will not run if the app is terminated but notifications will still be delivered even if this callback is not registered.
-   * It will also receive error messages created when displaying notifications on the background service.
-   *
-   * @param fn The function that will receive the distributor messages.
-   *
-   * This function will always receive an object with the properties `action` and `data`:
-   * - `data`: The data sent from the distributor. Varies depending on the `action` property.
-   * - `action`: The action that was performed by the distributor. Can be one of the following:
-   * - - `"message"`: A push notification was received. Data for this type is {@link MessagePayload}.
-   *        The text in `data.message` will contain the JSON-encoded payload of the push notification if `data.decrypted` is `true`.
-   *        Otherwise, it will contain the raw encrypted payload.
-   * - - `"registered"`: The device has been registered with a distributor. Data for this type is {@link RegisteredPayload}. This is the data that is needed for the backend to send a push notification to a specific device.
-   * - - `"registrationFailed"`: The device failed to register with a distributor. Data for this type is {@link RegistrationFailedPayload}.
-   * - - `"unregistered"`: The device has been unregistered from a distributor. Data for this type is {@link UnregisteredPayload}.
-   * - - `"error"`: An error occurred while receiving a message from a distributor. Data for this type is {@link ErrorPayload}.
-   */
-  subscribeDistributorMessages(fn: Callback): void;
-
   /** Internal method used to show a local notification.
    * It is prefixed with an underscore to avoid conflicts with the exported `showLocalNotification` function.
    * It is important to use `showLocalNotification` without the underscore instead of this one because of the type checking.
@@ -97,6 +81,30 @@ export declare class ExpoUnifiedPushModule extends NativeModule {
    * Internal method used only in other calls.
    */
   private __isEmulator(): boolean;
+}
+
+/**
+ * Subscribe to the messages sent from the distributor background service.
+ * This callback will be called whenever the distributor sends a message to the device.
+ * It will not run if the app is terminated but notifications will still be delivered even if this callback is not registered.
+ * It will also receive error messages created when displaying notifications on the background service.
+ *
+ * @param fn The function that will receive the distributor messages.
+ *
+ * This function will always receive an object with the properties `action` and `data`:
+ * - `data`: The data sent from the distributor. Varies depending on the `action` property.
+ * - `action`: The action that was performed by the distributor. Can be one of the following:
+ * - - `"message"`: A push notification was received. Data for this type is {@link MessagePayload}.
+ *        The text in `data.message` will contain the JSON-encoded payload of the push notification if `data.decrypted` is `true`.
+ *        Otherwise, it will contain the raw encrypted payload.
+ * - - `"registered"`: The device has been registered with a distributor. Data for this type is {@link RegisteredPayload}. This is the data that is needed for the backend to send a push notification to a specific device.
+ * - - `"registrationFailed"`: The device failed to register with a distributor. Data for this type is {@link RegistrationFailedPayload}.
+ * - - `"unregistered"`: The device has been unregistered from a distributor. Data for this type is {@link UnregisteredPayload}.
+ * - - `"error"`: An error occurred while receiving a message from a distributor. Data for this type is {@link ErrorPayload}.
+ */
+export function subscribeDistributorMessages(fn: Callback) {
+  const listener = module.addListener("message", fn);
+  return () => listener.remove();
 }
 
 /**

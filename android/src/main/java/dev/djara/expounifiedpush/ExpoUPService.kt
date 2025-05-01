@@ -7,21 +7,14 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationCompat.MessagingStyle
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.drawable.IconCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
-import expo.modules.kotlin.jni.JavaScriptFunction
+import expo.modules.kotlin.modules.Module
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -40,11 +33,10 @@ import org.unifiedpush.android.connector.data.PushMessage
 
 class ExpoUPService : PushService() {
     val TAG = "ExpoUPReceiver"
+    private var _module: Module? = null
 
-    private var callback: JavaScriptFunction<Unit>? = null
-
-    fun setCallback(fn: JavaScriptFunction<Unit>) {
-        callback = fn
+    fun setModule(m: Module) {
+        _module = m
     }
 
     private fun sendPushEvent(action: String, data: Bundle) {
@@ -52,10 +44,11 @@ class ExpoUPService : PushService() {
         payload.putBundle("data", data)
         payload.putString("action", action)
 
-        if (callback == null) {
-            Log.w(TAG, "called sendPushEvent without a callback")
+        val module = _module
+        if (module != null) {
+            module.sendEvent("message", payload)
         } else {
-            callback!!.invoke(payload)
+            Log.e(TAG, "sendPushEvent called without a reference to the expo module")
         }
     }
 

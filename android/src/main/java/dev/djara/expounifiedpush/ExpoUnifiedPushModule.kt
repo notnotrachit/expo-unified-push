@@ -1,6 +1,5 @@
 package dev.djara.expounifiedpush
 
-import android.R.attr.bitmap
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -10,14 +9,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.os.Bundle
 import android.os.IBinder
 import android.util.Base64
 import androidx.core.app.ActivityCompat
 import expo.modules.core.utilities.EmulatorUtilities
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
-import expo.modules.kotlin.jni.JavaScriptFunction
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.unifiedpush.android.connector.INSTANCE_DEFAULT
@@ -43,7 +40,7 @@ class ExpoUnifiedPushModule : Module() {
     // Constants("TASK" to TASK)
 
     // Defines event names that the module can send to JavaScript.
-    // Events("message", "newEndpoint", "registrationFailed", "unregistered")
+    Events("message")
 
     Function("getDistributors") {
       val context = appContext.activityProvider?.currentActivity
@@ -123,15 +120,6 @@ class ExpoUnifiedPushModule : Module() {
       val context = appContext.activityProvider?.currentActivity
       if (context != null) {
         UnifiedPush.unregister(context, instance ?: INSTANCE_DEFAULT)
-      }
-    }
-
-    Function("subscribeDistributorMessages") { fn: JavaScriptFunction<Unit> ->
-      distributorCallback = fn
-      if (distributorService != null) {
-        distributorService!!.setCallback(fn)
-      } else {
-        bindService()
       }
     }
 
@@ -238,7 +226,6 @@ class ExpoUnifiedPushModule : Module() {
     }
   }
 
-  private var distributorCallback: JavaScriptFunction<Unit>? = null
   private var distributorService: ExpoUPService? = null
 
   /** Defines callbacks for service binding, passed to bindService().  */
@@ -246,11 +233,7 @@ class ExpoUnifiedPushModule : Module() {
     override fun onServiceConnected(className: ComponentName, service: IBinder) {
       val binder = service as PushService.PushBinder
       val upService = binder.getService() as ExpoUPService
-
-      if (distributorCallback != null) {
-        upService.setCallback(distributorCallback!!)
-      }
-
+      upService.setModule(this@ExpoUnifiedPushModule)
       distributorService = upService
     }
 
