@@ -2,6 +2,8 @@
 
 Expo integration of the android Unified Push library.
 
+This library is still under development and testing, so **breaking changes** are expected.
+
 > [!WARNING]  
 > This library is only supported on Android at the moment. For iOS suport, we recommend using the [RN Push Notifications](https://github.com/react-native-push-notification/ios) library.
 
