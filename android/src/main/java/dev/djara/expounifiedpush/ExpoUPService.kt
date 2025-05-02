@@ -201,13 +201,18 @@ class ExpoUPService : PushService() {
     }
 
     private fun getOpenUrlIntent(url: String?): PendingIntent {
-        val intent =
-            applicationContext.packageManager.getLaunchIntentForPackage(
-                applicationContext.packageName
-            )?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                data = if (url != null) url.toUri().normalizeScheme() else data
-            }
+        var intent = applicationContext.packageManager.getLaunchIntentForPackage(
+            applicationContext.packageName
+        )
+
+        if (url != null) {
+            intent = Intent(Intent.ACTION_VIEW, url.toUri().normalizeScheme())
+        }
+
+        intent?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
         return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
     }
 
