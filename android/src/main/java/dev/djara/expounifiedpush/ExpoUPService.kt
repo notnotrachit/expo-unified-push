@@ -179,7 +179,7 @@ class ExpoUPService : PushService() {
 
     private fun getNotificationChannelDescription(): String {
         val appName = getAppName()
-        val text = "Unified Push Notification Channel for $appName"
+        val text = "UnifiedPush Notification Channel for $appName"
         return text
     }
 

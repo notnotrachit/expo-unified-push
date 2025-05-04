@@ -106,7 +106,7 @@ class ExpoUnifiedPushModule : Module() {
           UnifiedPush.register(
             context,
             instance ?: INSTANCE_DEFAULT,
-            "Expo Unified Push is trying to register notifications for $name",
+            "Expo UnifiedPush is trying to register notifications for $name",
             vapid
           )
           promise.resolve()

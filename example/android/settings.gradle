@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'Expo Unified Push Example'
+rootProject.name = 'Expo UnifiedPush Example'
 
 dependencyResolutionManagement {
   versionCatalogs {

@@ -1,7 +1,7 @@
 {
   "name": "expo-unified-push",
-  "version": "0.3.0",
-  "description": "Expo integration of the android Unified Push library",
+  "version": "0.3.1",
+  "description": "Expo integration of the android UnifiedPush library",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {

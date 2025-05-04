@@ -28,21 +28,21 @@ type ExpoUnifiedPushModuleEvents = {
  */
 export declare class ExpoUnifiedPushModule extends NativeModule<ExpoUnifiedPushModuleEvents> {
   /**
-   * Get the list of Unified Push distributors available on the device.
+   * Get the list of UnifiedPush distributors available on the device.
    * The list will always include a low-priority distributor that uses Firebase Cloud Messaging (FCM).
    * @returns a list of distributor identifiers.
    */
   getDistributors(): Distributor[];
 
   /**
-   * Get the distributor selected for using Unified Push.
+   * Get the distributor selected for using UnifiedPush.
    * If no distributor has been selected, it will return `null`.
    * @returns The selected distributor identifier or `null`.
    */
   getSavedDistributor(): string | null;
 
   /**
-   * Select a distributor for using Unified Push. This will be saved in the device storage.
+   * Select a distributor for using UnifiedPush. This will be saved in the device storage.
    * You can also pass `null` to clear the saved distributor, but this will clear all instances registered with the distributor.
    * @param distributor The distributor identifier to select.
    */
