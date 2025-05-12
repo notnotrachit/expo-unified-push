@@ -11,6 +11,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.IBinder
 import android.util.Base64
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import expo.modules.core.utilities.EmulatorUtilities
 import expo.modules.kotlin.Promise
@@ -22,6 +23,7 @@ import org.unifiedpush.android.connector.PushService
 import org.unifiedpush.android.connector.UnifiedPush
 import java.io.ByteArrayOutputStream
 import androidx.core.graphics.createBitmap
+import androidx.core.os.bundleOf
 
 
 class ExpoUnifiedPushModule : Module() {
@@ -146,11 +148,33 @@ class ExpoUnifiedPushModule : Module() {
     }
 
     OnCreate {
-      bindService()
+      kotlin.runCatching {
+        bindService()
+      }.onFailure { err ->
+        Log.e("ExpoUnifiedPushModule", "Error binding service: $err")
+        sendEvent("message", bundleOf(
+          "action" to "error",
+          "data" to bundleOf(
+            "message" to err.message,
+            "stackTrace" to err.stackTraceToString()
+          )
+        ))
+      }
     }
 
     OnDestroy {
-      unbindService()
+      kotlin.runCatching {
+        unbindService()
+      }.onFailure { err ->
+        Log.e("ExpoUnifiedPushModule", "Error unbinding service: $err")
+        sendEvent("message", bundleOf(
+          "action" to "error",
+          "data" to bundleOf(
+            "message" to err.message,
+            "stackTrace" to err.stackTraceToString()
+          )
+        ))
+      }
     }
   }
 
@@ -162,7 +186,8 @@ class ExpoUnifiedPushModule : Module() {
 
   private fun getDistributorIcon(distributor: String): String? {
     val icon = appContext.reactContext?.packageManager?.getApplicationIcon(distributor)
-    val base64 = drawableToBase64(icon)
+    val base64 = drawableToBase64(icon) ?: return null
+
     return "data:image/png;base64,$base64"
   }
 
