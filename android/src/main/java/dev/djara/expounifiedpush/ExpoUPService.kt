@@ -32,7 +32,7 @@ import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
 
 class ExpoUPService : PushService() {
-    val TAG = "ExpoUPReceiver"
+    val TAG = "ExpoUPService"
     private var _module: Module? = null
 
     fun setModule(m: Module) {
