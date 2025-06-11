@@ -1,6 +1,6 @@
 {
   "name": "expo-unified-push",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Expo integration of the android UnifiedPush library",
   "main": "build/index.js",
   "types": "build/index.d.ts",
