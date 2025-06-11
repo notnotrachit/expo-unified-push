@@ -6,5 +6,6 @@ export {
   requestPermissions,
   checkPermissions,
   showLocalNotification,
+  subscribeDistributorMessages,
 } from "./ExpoUnifiedPushModule";
 export * from "./ExpoUnifiedPush.types";
