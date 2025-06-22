@@ -14,7 +14,8 @@
     "expo-module": "expo-module",
     "open:ios": "xed example/ios",
     "open:android": "open -a \"Android Studio\" example/android",
-    "docs": "npx typedoc"
+    "docs": "npx typedoc",
+    "postversion": "git push && git push origin $(git describe --tags)"
   },
   "keywords": [
     "react-native",
