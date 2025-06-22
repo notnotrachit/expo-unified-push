@@ -85,8 +85,6 @@ class ExpoUPService : PushService() {
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showNotification(message: String) {
-        createNotificationChannel()
-
         val data = kotlin.runCatching {
             val json = Json.parseToJsonElement(message)
             json.jsonObject
@@ -107,17 +105,19 @@ class ExpoUPService : PushService() {
         val imageUrl = data["imageUrl"]?.jsonPrimitive?.content
         val count = data["number"]?.jsonPrimitive?.int
         val silent = data["silent"]?.jsonPrimitive?.boolean
+        val type = data["type"]?.jsonPrimitive?.content
 
         if (id == null) {
             Log.w(TAG, "Not sending notification without 'id' in json body")
             return
         }
 
-        val icon = applicationContext.applicationInfo.icon
-        val channel = getNotificationChannelId()
+        createNotificationChannel(type)
+
+        val channel = getNotificationChannelId(type)
         val notification =
             NotificationCompat.Builder(this, channel)
-                .setSmallIcon(icon!!)
+                .setSmallIcon(android.R.drawable.sym_action_chat)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setTicker(title)
@@ -159,9 +159,9 @@ class ExpoUPService : PushService() {
         return bitmap
     }
 
-    private fun getNotificationChannelId(): String {
+    private fun getNotificationChannelId(type: String?): String {
         val id = applicationContext.packageName
-        val channel = "$id:unified_push_channel"
+        val channel = "$id:unified_push_channel:$type"
         return channel
     }
 
@@ -171,25 +171,25 @@ class ExpoUPService : PushService() {
         return pm.getApplicationLabel(info).toString()
     }
 
-    private fun getNotificationChannelName(): String {
+    private fun getNotificationChannelName(type: String?): String {
         val appName = getAppName()
-        val text = "$appName UP Notifications"
+        val text = type ?: "$appName notifications"
         return text
     }
 
-    private fun getNotificationChannelDescription(): String {
+    private fun getNotificationChannelDescription(type: String?): String {
         val appName = getAppName()
-        val text = "UnifiedPush Notification Channel for $appName"
+        val text = "$appName $type notifications"
         return text
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannel(type: String?) {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is not in the Support Library.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val id = getNotificationChannelId()
-            val name = getNotificationChannelName()
-            val descriptionText = getNotificationChannelDescription()
+            val id = getNotificationChannelId(type)
+            val name = getNotificationChannelName(type)
+            val descriptionText = getNotificationChannelDescription(type)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
             val channel =
                 NotificationChannel(id, name, importance).apply {
