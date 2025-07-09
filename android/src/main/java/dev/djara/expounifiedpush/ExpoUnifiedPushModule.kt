@@ -299,9 +299,10 @@ class ExpoUnifiedPushModule : Module() {
         }
       }
       
-      val filter = IntentFilter(ExpoUPService.PUSH_EVENT_BROADCAST)
+      val broadcastAction = ExpoUPService.getPushEventBroadcast(context)
+      val filter = IntentFilter(broadcastAction)
       context.registerReceiver(broadcastReceiver!!, filter)
-      Log.d("ExpoUnifiedPushModule", "Broadcast receiver registered successfully with filter: ${ExpoUPService.PUSH_EVENT_BROADCAST}")
+      Log.d("ExpoUnifiedPushModule", "Broadcast receiver registered successfully with filter: $broadcastAction")
     } else {
       Log.w("ExpoUnifiedPushModule", "Cannot register broadcast receiver - context: $context, receiver: $broadcastReceiver")
     }

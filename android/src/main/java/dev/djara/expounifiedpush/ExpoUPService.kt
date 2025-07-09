@@ -36,7 +36,10 @@ class ExpoUPService : PushService() {
     private var _module: Module? = null
 
     companion object {
-        const val PUSH_EVENT_BROADCAST = "dev.djara.expounifiedpush.PUSH_EVENT"
+        // Generate app-specific broadcast action using the app's package name
+        fun getPushEventBroadcast(context: Context): String {
+            return "${context.packageName}.EXPO_UNIFIED_PUSH_EVENT"
+        }
         const val EXTRA_ACTION = "action"
         const val EXTRA_DATA = "data"
     }
@@ -60,14 +63,16 @@ class ExpoUPService : PushService() {
         }
 
         // Always send via broadcast as backup (works when app is backgrounded)
-        val intent = Intent(PUSH_EVENT_BROADCAST).apply {
+        val broadcastAction = getPushEventBroadcast(applicationContext)
+        val intent = Intent(broadcastAction).apply {
             putExtra(EXTRA_ACTION, action)
             putExtra(EXTRA_DATA, data)
-            // Don't set package to allow local delivery
+            // Restrict to our app's package for security
+            setPackage(applicationContext.packageName)
         }
-        Log.d(TAG, "Sending broadcast with action: $action, intent action: ${intent.action}")
+        Log.d(TAG, "Sending secure broadcast with action: $action, intent action: $broadcastAction, package: ${applicationContext.packageName}")
         sendBroadcast(intent)
-        Log.d(TAG, "Broadcast sent successfully")
+        Log.d(TAG, "Secure broadcast sent successfully")
     }
 
     private fun sendErrorEvent(err: Throwable) {
