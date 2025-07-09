@@ -1,14 +1,17 @@
 package dev.djara.expounifiedpush
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.os.Bundle
 import android.os.IBinder
 import android.util.Base64
 import android.util.Log
@@ -150,8 +153,10 @@ class ExpoUnifiedPushModule : Module() {
     OnCreate {
       kotlin.runCatching {
         bindService()
+        registerBroadcastReceiver()
+        Log.d("ExpoUnifiedPushModule", "Module onCreate completed successfully")
       }.onFailure { err ->
-        Log.e("ExpoUnifiedPushModule", "Error binding service: $err")
+        Log.e("ExpoUnifiedPushModule", "Error in onCreate: $err")
         sendEvent("message", bundleOf(
           "action" to "error",
           "data" to bundleOf(
@@ -165,6 +170,7 @@ class ExpoUnifiedPushModule : Module() {
     OnDestroy {
       kotlin.runCatching {
         unbindService()
+        unregisterBroadcastReceiver()
       }.onFailure { err ->
         Log.e("ExpoUnifiedPushModule", "Error unbinding service: $err")
         sendEvent("message", bundleOf(
@@ -252,6 +258,7 @@ class ExpoUnifiedPushModule : Module() {
   }
 
   private var distributorService: ExpoUPService? = null
+  private var broadcastReceiver: BroadcastReceiver? = null
 
   /** Defines callbacks for service binding, passed to bindService().  */
   private val connection = object : ServiceConnection {
@@ -264,6 +271,48 @@ class ExpoUnifiedPushModule : Module() {
 
     override fun onServiceDisconnected(arg0: ComponentName) {
       distributorService = null
+    }
+  }
+
+  private fun registerBroadcastReceiver() {
+    val context = appContext.reactContext
+    Log.d("ExpoUnifiedPushModule", "Attempting to register broadcast receiver, context: $context")
+    
+    if (context != null && broadcastReceiver == null) {
+      broadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+          Log.d("ExpoUnifiedPushModule", "Received broadcast event: ${intent.action}")
+          val action = intent.getStringExtra(ExpoUPService.EXTRA_ACTION)
+          val data = intent.getBundleExtra(ExpoUPService.EXTRA_DATA)
+          
+          Log.d("ExpoUnifiedPushModule", "Broadcast data - action: $action, data: $data")
+          
+          if (action != null && data != null) {
+            Log.d("ExpoUnifiedPushModule", "Forwarding broadcast event: $action")
+            sendEvent("message", bundleOf(
+              "action" to action,
+              "data" to data
+            ))
+          } else {
+            Log.w("ExpoUnifiedPushModule", "Received broadcast with null action or data")
+          }
+        }
+      }
+      
+      val filter = IntentFilter(ExpoUPService.PUSH_EVENT_BROADCAST)
+      context.registerReceiver(broadcastReceiver!!, filter)
+      Log.d("ExpoUnifiedPushModule", "Broadcast receiver registered successfully with filter: ${ExpoUPService.PUSH_EVENT_BROADCAST}")
+    } else {
+      Log.w("ExpoUnifiedPushModule", "Cannot register broadcast receiver - context: $context, receiver: $broadcastReceiver")
+    }
+  }
+
+  private fun unregisterBroadcastReceiver() {
+    val context = appContext.reactContext
+    if (context != null && broadcastReceiver != null) {
+      context.unregisterReceiver(broadcastReceiver!!)
+      broadcastReceiver = null
+      Log.d("ExpoUnifiedPushModule", "Broadcast receiver unregistered")
     }
   }
 }

@@ -35,6 +35,12 @@ class ExpoUPService : PushService() {
     val TAG = "ExpoUPService"
     private var _module: Module? = null
 
+    companion object {
+        const val PUSH_EVENT_BROADCAST = "dev.djara.expounifiedpush.PUSH_EVENT"
+        const val EXTRA_ACTION = "action"
+        const val EXTRA_DATA = "data"
+    }
+
     fun setModule(m: Module) {
         _module = m
     }
@@ -44,12 +50,24 @@ class ExpoUPService : PushService() {
         payload.putBundle("data", data)
         payload.putString("action", action)
 
+        // Try to send via module if available (when app is active)
         val module = _module
         if (module != null) {
+            Log.d(TAG, "Sending event via module for action: $action")
             module.sendEvent("message", payload)
         } else {
-            Log.e(TAG, "sendPushEvent called without a reference to the expo module")
+            Log.d(TAG, "Module not available, sending via broadcast for action: $action")
         }
+
+        // Always send via broadcast as backup (works when app is backgrounded)
+        val intent = Intent(PUSH_EVENT_BROADCAST).apply {
+            putExtra(EXTRA_ACTION, action)
+            putExtra(EXTRA_DATA, data)
+            // Don't set package to allow local delivery
+        }
+        Log.d(TAG, "Sending broadcast with action: $action, intent action: ${intent.action}")
+        sendBroadcast(intent)
+        Log.d(TAG, "Broadcast sent successfully")
     }
 
     private fun sendErrorEvent(err: Throwable) {
@@ -73,13 +91,29 @@ class ExpoUPService : PushService() {
         Log.d(TAG, "sending \"message\" action with data: $data")
         sendPushEvent("message", data)
 
+        // ALWAYS try to show a notification, regardless of module availability
         if (message.decrypted) {
+            val messageContent = String(message.content)
             kotlin.runCatching {
-                showNotification(String(message.content))
+                showNotification(messageContent)
+                Log.d(TAG, "Successfully displayed main notification")
             }.onFailure { err ->
-                Log.e(TAG, "Error displaying notification: $err")
+                Log.e(TAG, "Error displaying main notification: $err")
                 sendErrorEvent(err)
+                // Show fallback notification
+                kotlin.runCatching {
+                    showFallbackNotification(messageContent)
+                    Log.d(TAG, "Successfully displayed fallback notification")
+                }.onFailure { fallbackErr ->
+                    Log.e(TAG, "Failed to show fallback notification: $fallbackErr")
+                    // Last resort: show a very basic notification
+                    showBasicNotification("New message received")
+                }
             }
+        } else {
+            // For encrypted messages, show a basic notification
+            Log.d(TAG, "Message is encrypted, showing basic notification")
+            showBasicNotification("You have a new encrypted message")
         }
     }
 
@@ -98,7 +132,7 @@ class ExpoUPService : PushService() {
             return
         }
 
-        val id = data["id"]?.jsonPrimitive?.long
+        val id = data["id"]?.jsonPrimitive?.long ?: System.currentTimeMillis()
         val url = data["url"]?.jsonPrimitive?.content
         val title = data["title"]?.jsonPrimitive?.content
         val body = data["body"]?.jsonPrimitive?.content
@@ -107,10 +141,7 @@ class ExpoUPService : PushService() {
         val silent = data["silent"]?.jsonPrimitive?.boolean
         val type = data["type"]?.jsonPrimitive?.content
 
-        if (id == null) {
-            Log.w(TAG, "Not sending notification without 'id' in json body")
-            return
-        }
+        Log.d(TAG, "Showing notification with id: $id, title: $title, body: $body")
 
         createNotificationChannel(type)
 
@@ -134,7 +165,7 @@ class ExpoUPService : PushService() {
             notification.setNumber(count)
         }
 
-        if (imageUrl !== null) {
+        if (imageUrl != null) {
             runBlocking {
                 val bitmap = urlToBitmap(imageUrl)
                 notification.setLargeIcon(bitmap)
@@ -142,6 +173,62 @@ class ExpoUPService : PushService() {
         }
 
         NotificationManagerCompat.from(this).notify(id.toInt(), notification.build())
+    }
+
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    private fun showFallbackNotification(message: String) {
+        Log.d(TAG, "Showing fallback notification for message: $message")
+        
+        val notificationId = System.currentTimeMillis().toInt()
+        val appName = getAppName()
+        
+        createNotificationChannel(null)
+        val channel = getNotificationChannelId(null)
+        
+        val notification = NotificationCompat.Builder(this, channel)
+            .setSmallIcon(android.R.drawable.sym_action_chat)
+            .setContentTitle(appName)
+            .setContentText(message)
+            .setTicker(appName)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setContentIntent(getOpenUrlIntent(null))
+            .setAutoCancel(true)
+            .build()
+            
+        NotificationManagerCompat.from(this).notify(notificationId, notification)
+    }
+
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    private fun showBasicNotification(message: String) {
+        Log.d(TAG, "Showing basic notification: $message")
+        
+        val notificationId = System.currentTimeMillis().toInt()
+        val appName = getAppName()
+        
+        // Use a very simple notification that should always work
+        val notificationManager = NotificationManagerCompat.from(this)
+        
+        // Create default channel if needed
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "default",
+                "$appName Notifications",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            notificationManager.createNotificationChannel(channel)
+        }
+        
+        val notification = NotificationCompat.Builder(this, "default")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(appName)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+            
+        notificationManager.notify(notificationId, notification)
+        Log.d(TAG, "Basic notification displayed successfully")
     }
 
     private suspend fun urlToBitmap(url: String): Bitmap {
