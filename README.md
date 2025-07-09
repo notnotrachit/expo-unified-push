@@ -27,6 +27,10 @@ npm install expo-unified-push
 
 To see an example implementation of the library, you can check the [App.tsx](./example/App.tsx) file in the [example](./example) folder.
 
+## Sending notifications from your backend 
+
+To send notifications from your backend, use the [`web-push`](https://www.npmjs.com/package/web-push) npm library or something similar. It will handle all encoding of parameters for you. Remember to set up VAPID keys for improved security (more info on the `web-push` readme)
+
 ## Contributing
 
 Contributions are very welcome! Just make sure to keep the code style consistent with the rest of the codebase and ask before adding any new dependencies.
